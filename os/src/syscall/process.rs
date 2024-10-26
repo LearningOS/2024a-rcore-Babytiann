@@ -58,7 +58,7 @@ pub fn sys_task_info(ti: *mut TaskInfo) -> isize {
 
     let info = task.info();
 
-    println!("string from task info test");
+
     unsafe {
         (*ti).status = task.status();
         (*ti).time = now - info.start_time;
