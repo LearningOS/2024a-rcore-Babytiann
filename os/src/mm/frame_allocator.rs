@@ -1,6 +1,6 @@
 //! Implementation of [`FrameAllocator`] which
 //! controls all the frames in the operating system.
-
+//实现的就是一个物理页帧分配器，用于控制操作系统中的所有帧
 use super::{PhysAddr, PhysPageNum};
 use crate::config::MEMORY_END;
 use crate::sync::UPSafeCell;
@@ -85,7 +85,7 @@ impl FrameAllocator for StackFrameAllocator {
         self.recycled.push(ppn);
     }
 }
-
+///上面的函数实现了FrameAllocator的trait，实现了分配和回收物理页帧的功能，一定别忘了回收物理页帧的recycled数组
 type FrameAllocatorImpl = StackFrameAllocator;
 
 lazy_static! {
@@ -93,6 +93,7 @@ lazy_static! {
     pub static ref FRAME_ALLOCATOR: UPSafeCell<FrameAllocatorImpl> =
         unsafe { UPSafeCell::new(FrameAllocatorImpl::new()) };
 }
+///调用一下FrameAllocator里面实现的函数，给他装进函数变得可以被调用
 /// initiate the frame allocator using `ekernel` and `MEMORY_END`
 pub fn init_frame_allocator() {
     extern "C" {
@@ -118,7 +119,7 @@ pub fn frame_dealloc(ppn: PhysPageNum) {
 }
 
 #[allow(unused)]
-/// a simple test for frame allocator
+/// a simple test for frame allocator，就是一个简单的测试函数，用于测试物理页帧分配器
 pub fn frame_allocator_test() {
     let mut v: Vec<FrameTracker> = Vec::new();
     for i in 0..5 {

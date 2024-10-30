@@ -42,7 +42,7 @@ impl Debug for PhysPageNum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("PPN:{:#x}", self.0))
     }
-}
+}                               //对物理地址，物理页号，虚拟地址，虚拟页号进行了Debug的实现
 
 /// T: {PhysAddr, VirtAddr, PhysPageNum, VirtPageNum}
 /// T -> usize: T.0
@@ -67,7 +67,7 @@ impl From<usize> for VirtPageNum {
     fn from(v: usize) -> Self {
         Self(v & ((1 << VPN_WIDTH_SV39) - 1))
     }
-}
+}                   //上面这些函数是将usize转换为物理地址，物理页号，虚拟地址，虚拟页号
 impl From<PhysAddr> for usize {
     fn from(v: PhysAddr) -> Self {
         v.0
@@ -91,7 +91,7 @@ impl From<VirtPageNum> for usize {
     fn from(v: VirtPageNum) -> Self {
         v.0
     }
-}
+}       //上面这些函数是将usize转换为物理地址，物理页号，虚拟地址，虚拟页号，跟下面的相反
 /// virtual address impl
 impl VirtAddr {
     /// Get the (floor) virtual page number
@@ -102,18 +102,18 @@ impl VirtAddr {
     /// Get the (ceil) virtual page number
     pub fn ceil(&self) -> VirtPageNum {
         VirtPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
-    }
+    }    //都是获得虚拟页号，但是一个是向下取整，一个是向上取整
 
     /// Get the page offset of virtual address
     pub fn page_offset(&self) -> usize {
         self.0 & (PAGE_SIZE - 1)
-    }
+    }   //页偏移，获取偏移量
 
     /// Check if the virtual address is aligned by page size
     pub fn aligned(&self) -> bool {
         self.page_offset() == 0
     }
-}
+}                  //上面这几个函数是获取虚拟地址的页号，页偏移，判断是否对齐（偏移量为0一定是对齐）等
 impl From<VirtAddr> for VirtPageNum {
     fn from(v: VirtAddr) -> Self {
         assert_eq!(v.page_offset(), 0);
@@ -124,7 +124,7 @@ impl From<VirtPageNum> for VirtAddr {
     fn from(v: VirtPageNum) -> Self {
         Self(v.0 << PAGE_SIZE_BITS)
     }
-}
+}                           //上面这两个函数是将虚拟地址转换为虚拟页号，将虚拟页号转换为虚拟地址
 impl PhysAddr {
     /// Get the (floor) physical page number
     pub fn floor(&self) -> PhysPageNum {
@@ -153,7 +153,7 @@ impl From<PhysPageNum> for PhysAddr {
     fn from(v: PhysPageNum) -> Self {
         Self(v.0 << PAGE_SIZE_BITS)
     }
-}
+}       //同理，跟上面的虚拟地址，虚拟页号的实现类似
 
 impl VirtPageNum {
     /// Get the indexes of the page table entry
@@ -166,7 +166,7 @@ impl VirtPageNum {
         }
         idx
     }
-}
+} //从虚拟页号获取页表项（这里是三级页表的页表项）的索引
 
 impl PhysAddr {
     ///Get mutable reference to `PhysAddr` value

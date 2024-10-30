@@ -262,7 +262,7 @@ impl MemorySet {
             false
         }
     }
-}
+}  ///shrink和append_to用于动态调整内存区域的大小，比如堆的大小，栈的大小等
 /// map area structure, controls a contiguous piece of virtual memory
 pub struct MapArea {
     vpn_range: VPNRange,

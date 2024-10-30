@@ -1,9 +1,8 @@
 //! Process management syscalls
 use crate::{
-    config::MAX_SYSCALL_NUM,
-    task::{
-        change_program_brk, exit_current_and_run_next, suspend_current_and_run_next, TaskStatus,
-    },
+    config::MAX_SYSCALL_NUM, mm::translated_byte_buffer, task::{
+        change_program_brk, current_user_token, exit_current_and_run_next, suspend_current_and_run_next, TaskStatus
+    }, timer::get_time_us
 };
 
 #[repr(C)]
@@ -43,7 +42,26 @@ pub fn sys_yield() -> isize {
 /// HINT: What if [`TimeVal`] is splitted by two pages ?
 pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
     trace!("kernel: sys_get_time");
-    -1
+    let buf: *const u8 = unsafe { core::mem::transmute(_ts) };
+    let len = core::mem::size_of::<TimeVal>();
+    let targets = translated_byte_buffer(current_user_token(), buf, len);
+
+    let now = get_time_us();
+    let time_val = TimeVal {
+        sec: now / 1_000_000,
+        usec: now % 1_000_000,
+    };
+
+    let time_val_buf: *const u8 = unsafe { core::mem::transmute(&time_val) };
+
+    let mut offset = 0;
+    for target in targets {
+        target.copy_from_slice(unsafe {
+            core::slice::from_raw_parts(time_val_buf.add(offset), target.len())
+        });
+        offset += target.len();
+    }
+    0
 }
 
 /// YOUR JOB: Finish sys_task_info to pass testcases
