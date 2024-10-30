@@ -1,9 +1,12 @@
 //! Process management syscalls
+use core::borrow::Borrow;
+
 use crate::{
-    config::MAX_SYSCALL_NUM, mm::translated_byte_buffer, task::{
-        change_program_brk, current_user_token, exit_current_and_run_next, suspend_current_and_run_next, TaskStatus
-    }, timer::get_time_us
+    config::MAX_SYSCALL_NUM, mm::{translated_byte_buffer, MapPermission}, task::{
+        change_program_brk, current_user_token, exit_current_and_run_next, suspend_current_and_run_next, TaskControlBlock, TaskStatus, TASK_MANAGER
+    }, timer::{get_time_ms, get_time_us},
 };
+
 
 #[repr(C)]
 #[derive(Debug)]
@@ -37,14 +40,31 @@ pub fn sys_yield() -> isize {
     0
 }
 
+fn copy_to_virt<T>(src: &T, dst: *mut T) {
+    let src_buf_ptr: *const u8 = unsafe { core::mem::transmute(src) };
+    let dst_buf_ptr: *const u8 = unsafe { core::mem::transmute(dst) };
+    let len = core::mem::size_of::<T>();
+
+    let dst_frames = translated_byte_buffer(
+        current_user_token(),
+        dst_buf_ptr,
+        len
+    );
+
+    let mut offset = 0;
+    for dst_frame in dst_frames {
+        dst_frame.copy_from_slice(unsafe {
+            core::slice::from_raw_parts(src_buf_ptr.add(offset), dst_frame.len())
+        });
+        offset += dst_frame.len();
+    }
+}
+
 /// YOUR JOB: get time with second and microsecond
 /// HINT: You might reimplement it with virtual memory management.
 /// HINT: What if [`TimeVal`] is splitted by two pages ?
-pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
+pub fn sys_get_time(ts: *mut TimeVal, _tz: usize) -> isize {
     trace!("kernel: sys_get_time");
-    let buf: *const u8 = unsafe { core::mem::transmute(_ts) };
-    let len = core::mem::size_of::<TimeVal>();
-    let targets = translated_byte_buffer(current_user_token(), buf, len);
 
     let now = get_time_us();
     let time_val = TimeVal {
@@ -52,37 +72,100 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
         usec: now % 1_000_000,
     };
 
-    let time_val_buf: *const u8 = unsafe { core::mem::transmute(&time_val) };
-
-    let mut offset = 0;
-    for target in targets {
-        target.copy_from_slice(unsafe {
-            core::slice::from_raw_parts(time_val_buf.add(offset), target.len())
-        });
-        offset += target.len();
-    }
+    copy_to_virt(&time_val, ts);
     0
 }
 
 /// YOUR JOB: Finish sys_task_info to pass testcases
 /// HINT: You might reimplement it with virtual memory management.
 /// HINT: What if [`TaskInfo`] is splitted by two pages ?
-pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
-    trace!("kernel: sys_task_info NOT IMPLEMENTED YET!");
-    -1
+pub fn sys_task_info(ti: *mut TaskInfo) -> isize {
+    trace!("kernel: sys_task_info");
+    let now = get_time_ms();
+    let new = {
+        let task = TASK_MANAGER.current_task();
+        let task: &TaskControlBlock = task.borrow();
+        TaskInfo {
+            status: task.status(),
+            time: now - task.start_time,
+            syscall_times: task.syscall_times,
+        }
+    };
+    copy_to_virt(&new, ti);
+    0
+}
+
+bitflags! {
+    pub struct MmapProt: usize {
+        const PROT_NONE = 0;
+        const PROT_READ = 1;
+        const PROT_WRITE = 2;
+        const PROT_EXEC = 4;
+    }
+}
+
+impl From<MmapProt> for MapPermission {
+    fn from(prot: MmapProt) -> Self {
+        let mut permission = MapPermission::empty();
+        if prot.contains(MmapProt::PROT_READ) {
+            permission |= MapPermission::R;
+        }
+        if prot.contains(MmapProt::PROT_WRITE) {
+            permission |= MapPermission::W;
+        }
+        if prot.contains(MmapProt::PROT_EXEC) {
+            permission |= MapPermission::X;
+        }
+        permission
+    }
 }
 
 // YOUR JOB: Implement mmap.
-pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
-    trace!("kernel: sys_mmap NOT IMPLEMENTED YET!");
-    -1
+pub fn sys_mmap(start: usize, len: usize, prot: usize) -> isize {
+    debug!("kernel: sys_mmap start: {:#x}, len: {:#x}, prot: {:#x}", start, len, prot);
+    let Some(prot) = MmapProt::from_bits(prot) else {
+        return -1;
+    };
+
+    if prot == MmapProt::PROT_NONE {
+        return -1;
+    }
+
+    if start % 4096 != 0 {
+        return -1;
+    }
+
+    if let Err(msg) = TASK_MANAGER
+        .mmap(
+            start.into(),
+            (start + len).into(),
+            prot.into()
+        ) {
+        info!("kernel: sys_mmap failed: {}", msg);
+        return -1;
+    }
+    0
 }
 
 // YOUR JOB: Implement munmap.
-pub fn sys_munmap(_start: usize, _len: usize) -> isize {
-    trace!("kernel: sys_munmap NOT IMPLEMENTED YET!");
-    -1
+pub fn sys_munmap(start: usize, len: usize) -> isize {
+    debug!("kernel: sys_munmap start: {:#x}, len: {:#x}", start, len);
+
+    if start % 4096 != 0 || len % 4096 != 0 {
+        return -1;
+    }
+
+    if let Err(msg) = TASK_MANAGER
+        .unmap(
+            start.into(),
+            (start + len).into(),
+        ) {
+        info!("kernel: sys_munmap failed: {}", msg);
+        return -1;
+    }
+    0
 }
+
 /// change data segment size
 pub fn sys_sbrk(size: i32) -> isize {
     trace!("kernel: sys_sbrk");
