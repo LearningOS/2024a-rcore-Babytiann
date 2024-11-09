@@ -3,7 +3,7 @@ use crate::{
     task::{add_task, current_task, TaskControlBlock},
     trap::{trap_handler, TrapContext},
 };
-use alloc::sync::Arc;
+use alloc::{sync::Arc, vec, vec::Vec};
 /// thread create syscall
 pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     trace!(
@@ -50,6 +50,21 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
         trap_handler as usize,
     );
     (*new_task_trap_cx).x[10] = arg;
+    let mutex_len = process_inner.dd_available_mutex.len();
+    process_inner.dd_allocation_mutex.push(vec![0; mutex_len]);
+    process_inner.dd_need_mutex.push(vec![0; mutex_len]);
+    let sem_len = process_inner.dd_available_sem.len();
+    process_inner.dd_allocation_sem.push(vec![0; sem_len]);
+    // process_inner.dd_need_sem.push(vec![2; sem_len]);
+    // debug!("dd_allocation_sem: {:?}", process_inner.dd_allocation_sem);
+    let sem_max_count_vec: Vec<usize> = process_inner
+        .semaphore_list
+        .iter()
+        .filter_map(|sem| sem.as_ref().map(|s| s.max_count - 1))
+        .collect();
+    // debug!("sem_max_count_vec: {:?}", sem_max_count_vec);
+    process_inner.dd_need_sem.push(sem_max_count_vec);
+    debug!("dd_need_sem: {:?}", process_inner.dd_need_sem);
     new_task_tid as isize
 }
 /// get current thread id syscall

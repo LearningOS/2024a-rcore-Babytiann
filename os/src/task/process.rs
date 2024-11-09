@@ -49,6 +49,20 @@ pub struct ProcessControlBlockInner {
     pub semaphore_list: Vec<Option<Arc<Semaphore>>>,
     /// condvar list
     pub condvar_list: Vec<Option<Arc<Condvar>>>,
+    /// deadlock detection enabled
+    pub deadlock_detection_enabled: bool,
+    /// deadlock detection available mutex
+    pub dd_available_mutex: Vec<usize>,
+    /// deadlock detection allocation mutex
+    pub dd_allocation_mutex: Vec<Vec<usize>>,
+    /// deadlock detection need mutex
+    pub dd_need_mutex: Vec<Vec<usize>>,
+    /// deadlock detection available sem
+    pub dd_available_sem: Vec<usize>,
+    /// deadlock detection allocation sem
+    pub dd_allocation_sem: Vec<Vec<usize>>,
+    /// deadlock detection need sem
+    pub dd_need_sem: Vec<Vec<usize>>,
 }
 
 impl ProcessControlBlockInner {
@@ -119,6 +133,13 @@ impl ProcessControlBlock {
                     mutex_list: Vec::new(),
                     semaphore_list: Vec::new(),
                     condvar_list: Vec::new(),
+                    deadlock_detection_enabled: false,
+                    dd_available_mutex: Vec::new(),
+                    dd_allocation_mutex: vec![Vec::new()],
+                    dd_need_mutex: vec![Vec::new()],
+                    dd_available_sem: Vec::new(),
+                    dd_allocation_sem: vec![Vec::new()],
+                    dd_need_sem: vec![Vec::new()],
                 })
             },
         });
@@ -245,6 +266,13 @@ impl ProcessControlBlock {
                     mutex_list: Vec::new(),
                     semaphore_list: Vec::new(),
                     condvar_list: Vec::new(),
+                    deadlock_detection_enabled: false,
+                    dd_available_mutex: Vec::new(),
+                    dd_allocation_mutex: vec![Vec::new()],
+                    dd_need_mutex: vec![Vec::new()],
+                    dd_available_sem: Vec::new(),
+                    dd_allocation_sem: vec![Vec::new()],
+                    dd_need_sem: vec![Vec::new()],
                 })
             },
         });
