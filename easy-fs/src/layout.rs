@@ -8,7 +8,7 @@ const EFS_MAGIC: u32 = 0x3b800001;
 /// The max number of direct inodes
 const INODE_DIRECT_COUNT: usize = 28;
 /// The max length of inode name
-const NAME_LENGTH_LIMIT: usize = 27;
+const NAME_LENGTH_LIMIT: usize = 26;
 /// The max number of indirect1 inodes
 const INODE_INDIRECT1_COUNT: usize = BLOCK_SZ / 4;
 /// The max number of indirect2 inodes
@@ -333,11 +333,11 @@ impl DiskInode {
                 self.get_block_id(start_block as u32, block_device) as usize,
                 Arc::clone(block_device),
             )
-            .lock()
-            .read(0, |data_block: &DataBlock| {
-                let src = &data_block[start % BLOCK_SZ..start % BLOCK_SZ + block_read_size];
-                dst.copy_from_slice(src);
-            });
+                .lock()
+                .read(0, |data_block: &DataBlock| {
+                    let src = &data_block[start % BLOCK_SZ..start % BLOCK_SZ + block_read_size];
+                    dst.copy_from_slice(src);
+                });
             read_size += block_read_size;
             // move to next block
             if end_current_block == end {
@@ -371,12 +371,12 @@ impl DiskInode {
                 self.get_block_id(start_block as u32, block_device) as usize,
                 Arc::clone(block_device),
             )
-            .lock()
-            .modify(0, |data_block: &mut DataBlock| {
-                let src = &buf[write_size..write_size + block_write_size];
-                let dst = &mut data_block[start % BLOCK_SZ..start % BLOCK_SZ + block_write_size];
-                dst.copy_from_slice(src);
-            });
+                .lock()
+                .modify(0, |data_block: &mut DataBlock| {
+                    let src = &buf[write_size..write_size + block_write_size];
+                    let dst = &mut data_block[start % BLOCK_SZ..start % BLOCK_SZ + block_write_size];
+                    dst.copy_from_slice(src);
+                });
             write_size += block_write_size;
             // move to next block
             if end_current_block == end {
@@ -391,6 +391,7 @@ impl DiskInode {
 /// A directory entry
 #[repr(C)]
 pub struct DirEntry {
+    valid: bool,
     name: [u8; NAME_LENGTH_LIMIT + 1],
     inode_id: u32,
 }
@@ -401,6 +402,7 @@ impl DirEntry {
     /// Create an empty directory entry
     pub fn empty() -> Self {
         Self {
+            valid: true,
             name: [0u8; NAME_LENGTH_LIMIT + 1],
             inode_id: 0,
         }
@@ -410,6 +412,7 @@ impl DirEntry {
         let mut bytes = [0u8; NAME_LENGTH_LIMIT + 1];
         bytes[..name.len()].copy_from_slice(name.as_bytes());
         Self {
+            valid: true,
             name: bytes,
             inode_id,
         }
@@ -430,5 +433,13 @@ impl DirEntry {
     /// Get inode number of the entry
     pub fn inode_id(&self) -> u32 {
         self.inode_id
+    }
+    /// Check if the entry is valid
+    pub fn valid(&self) -> bool {
+        self.valid
+    }
+    /// Invalidate the entry
+    pub fn invalidate(&mut self) {
+        self.valid = false;
     }
 }

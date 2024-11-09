@@ -78,6 +78,18 @@ impl MemorySet {
             self.areas.remove(idx);
         }
     }
+    /// Drop the frame area
+    pub fn drop_frame_area(
+        &mut self,
+        start_va: VirtAddr,
+        end_va: VirtAddr,
+    ) {
+        let start_vpn: VirtPageNum = start_va.floor();
+        let end_vpn: VirtPageNum = end_va.ceil();
+        for vpn in VPNRange::new(start_vpn, end_vpn) {
+            self.page_table.unmap(vpn);
+        }
+    }
     /// Add a new MapArea into this MemorySet.
     /// Assuming that there are no conflicts in the virtual address
     /// space.
