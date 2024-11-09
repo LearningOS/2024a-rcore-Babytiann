@@ -64,7 +64,7 @@ impl File for Stdout {
         user_buf.len()
     }
     fn get_inode_id(&self) -> usize {
-        0
+        1
     }
     fn get_nlink(&self) -> usize {
         1

@@ -125,12 +125,12 @@ pub fn trap_return() -> ! {
     // trace!("[kernel] trap_return: ..before return");
     unsafe {
         asm!(
-            "fence.i",
-            "jr {restore_va}",
-            restore_va = in(reg) restore_va,
-            in("a0") trap_cx_ptr,
-            in("a1") user_satp,
-            options(noreturn)
+        "fence.i",
+        "jr {restore_va}",
+        restore_va = in(reg) restore_va,
+        in("a0") trap_cx_ptr,
+        in("a1") user_satp,
+        options(noreturn)
         );
     }
 }
